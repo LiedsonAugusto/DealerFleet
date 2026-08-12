@@ -1,15 +1,17 @@
 spring:
   application:
-    name: fleet
+    name: dealerfleet
+  profiles:
+    default: dev
 
 viacep:
-  base-url: https://viacep.com.br/ws
+  base-url: ${VIACEP_BASE_URL:https://viacep.com.br/ws}
   connect-timeout: 3s
   read-timeout: 5s
 
 app:
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 springdoc:
   swagger-ui:
@@ -19,8 +21,42 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       probes:
         enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:dealerfleet;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  h2:
+    console:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+logging:
+  structured:
+    format:
+      console: ecs

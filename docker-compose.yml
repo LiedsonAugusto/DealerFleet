@@ -1,0 +1,38 @@
+name: dealerfleet
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dealerfleet-postgres
+    environment:
+      POSTGRES_DB: dealerfleet
+      POSTGRES_USER: dealerfleet
+      POSTGRES_PASSWORD: dealerfleet
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dealerfleet -d dealerfleet"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: dealerfleet-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/dealerfleet
+      DB_USER: dealerfleet
+      DB_PASSWORD: dealerfleet
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
