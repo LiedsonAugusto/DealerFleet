@@ -24,16 +24,19 @@ class ApiExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail handleNotFound(NotFoundException exception) {
+        log.warn("Registro nao encontrado: {}", exception.getMessage());
         return problem(HttpStatus.NOT_FOUND, "Registro nao encontrado", exception.getMessage());
     }
 
     @ExceptionHandler(BusinessRuleException.class)
     ProblemDetail handleBusinessRule(BusinessRuleException exception) {
+        log.warn("Regra de negocio violada: {}", exception.getMessage());
         return problem(HttpStatus.CONFLICT, "Regra de negocio violada", exception.getMessage());
     }
 
     @ExceptionHandler(InvalidValueException.class)
     ProblemDetail handleInvalidValue(InvalidValueException exception) {
+        log.warn("Dados invalidos: {}", exception.getMessage());
         return problem(HttpStatus.BAD_REQUEST, "Dados invalidos", exception.getMessage());
     }
 
@@ -42,6 +45,8 @@ class ApiExceptionHandler {
         Map<String, String> errors = new LinkedHashMap<>();
         exception.getBindingResult().getFieldErrors()
                 .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
+
+        log.warn("Validacao de campos falhou: {}", errors);
 
         ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Dados invalidos",
                 "Um ou mais campos nao passaram na validacao");

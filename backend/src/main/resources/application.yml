@@ -3,6 +3,8 @@ spring:
     name: dealerfleet
   profiles:
     default: dev
+  jpa:
+    open-in-view: false
 
 viacep:
   base-url: ${VIACEP_BASE_URL:https://viacep.com.br/ws}
@@ -16,6 +18,10 @@ app:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
 
 management:
   endpoints:
@@ -60,3 +66,6 @@ logging:
   structured:
     format:
       console: ecs
+    json:
+      context:
+        include: true
