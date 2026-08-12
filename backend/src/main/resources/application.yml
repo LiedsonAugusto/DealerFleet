@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: fleet
+
+viacep:
+  base-url: https://viacep.com.br/ws
+  connect-timeout: 3s
+  read-timeout: 5s
+
+app:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
