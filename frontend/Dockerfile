@@ -12,7 +12,11 @@ COPY public/ public/
 COPY src/ src/
 
 ARG VITE_API_URL=/api
+ARG VITE_SWAGGER_URL=http://localhost:8080/swagger-ui.html
+ARG VITE_COVERAGE_URL=/coverage/
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SWAGGER_URL=$VITE_SWAGGER_URL
+ENV VITE_COVERAGE_URL=$VITE_COVERAGE_URL
 RUN yarn build
 
 FROM nginx:1.27-alpine

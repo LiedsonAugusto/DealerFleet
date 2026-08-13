@@ -11,13 +11,6 @@ export function errorMessage(error: unknown): string {
   return 'Erro inesperado'
 }
 
-export function errorDetail(error: unknown): string | undefined {
-  if (error instanceof ApiError && error.requestId) {
-    return `Requisição ${error.requestId}`
-  }
-  return undefined
-}
-
 export function applyFieldErrors<T extends FieldValues>(
   error: unknown,
   setError: UseFormSetError<T>,

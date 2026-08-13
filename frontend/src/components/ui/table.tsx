@@ -3,14 +3,20 @@ import { cn } from '@/lib/utils'
 
 export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full min-w-max border-collapse text-left text-sm">{children}</table>
     </div>
   )
 }
 
 export function TableHead({ children }: { children: ReactNode }) {
-  return <thead className="border-b border-slate-200 bg-slate-50">{children}</thead>
+  return <thead className="bg-slate-50">{children}</thead>
+}
+
+export function TableFilterRow({ children }: { children: ReactNode }) {
+  return (
+    <tr className="border-y border-slate-200 bg-white/60 [&>td]:px-4 [&>td]:py-2">{children}</tr>
+  )
 }
 
 export function TableBody({ children }: { children: ReactNode }) {
@@ -18,14 +24,14 @@ export function TableBody({ children }: { children: ReactNode }) {
 }
 
 export function TableRow({ children }: { children: ReactNode }) {
-  return <tr className="transition-colors hover:bg-slate-50">{children}</tr>
+  return <tr className="transition-colors hover:bg-brand-50/40">{children}</tr>
 }
 
 export function TableHeader({ className, children, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       scope="col"
-      className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500', className)}
+      className={cn('px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500', className)}
       {...props}
     >
       {children}

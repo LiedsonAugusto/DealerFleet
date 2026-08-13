@@ -3,6 +3,17 @@ const currency = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 })
 
+const compactCurrency = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+export function formatCompactCurrency(value: number): string {
+  return compactCurrency.format(value)
+}
+
 export function onlyDigits(value: string): string {
   return value.replace(/\D/g, '')
 }

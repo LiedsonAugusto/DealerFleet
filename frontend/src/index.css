@@ -26,3 +26,39 @@
     background-color: rgb(15 23 42 / 0.55);
   }
 }
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@layer utilities {
+  .animate-toast-in {
+    animation: toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-toast-progress {
+    animation: toast-progress linear forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-in {
+    animation: none;
+  }
+}

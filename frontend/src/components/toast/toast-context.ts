@@ -6,7 +6,7 @@ export type Toast = {
   id: number
   tone: ToastTone
   message: string
-  detail?: string
+  description?: string
 }
 
 export type ToastContextValue = {

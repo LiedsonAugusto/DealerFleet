@@ -46,9 +46,13 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: /api
+        VITE_SWAGGER_URL: http://localhost:8080/swagger-ui.html
+        VITE_COVERAGE_URL: /coverage/
     container_name: dealerfleet-frontend
     ports:
       - "3000:80"
+    volumes:
+      - ./backend/target/site/jacoco:/usr/share/nginx/html/coverage:ro
     depends_on:
       backend:
         condition: service_healthy

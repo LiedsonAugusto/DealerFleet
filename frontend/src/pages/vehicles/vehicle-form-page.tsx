@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select'
 import { useDealers } from '@/hooks/use-dealers'
 import { useToast } from '@/hooks/use-toast'
 import { useCreateVehicle, useUpdateVehicle, useVehicle } from '@/hooks/use-vehicles'
-import { applyFieldErrors, errorDetail, errorMessage } from '@/lib/api-errors'
+import { applyFieldErrors, errorMessage } from '@/lib/api-errors'
 import { maskChassis, maskCurrency, maskYear } from '@/lib/format'
 import { FUEL_LABELS } from '@/lib/labels'
 import type { VehicleFormValues } from '@/schemas/vehicle'
@@ -62,7 +62,7 @@ function VehicleForm({
   const submit = handleSubmit((values) => onSubmit(toVehicleInput(values), setError))
 
   return (
-    <form onSubmit={submit} noValidate className="max-w-3xl">
+    <form onSubmit={submit} noValidate>
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Dados obrigatórios
@@ -271,18 +271,14 @@ export function VehicleFormPage() {
       onError: (submitError) => {
         const mapped = applyFieldErrors(submitError, setError)
         if (!mapped) {
-          notify({
-            tone: 'error',
-            message: errorMessage(submitError),
-            detail: errorDetail(submitError),
-          })
+          notify({ tone: 'error', message: errorMessage(submitError) })
         }
       },
     })
   }
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-3xl">
       <PageHeader
         title={isEdit ? 'Editar veículo' : 'Novo veículo'}
         description={
@@ -311,6 +307,6 @@ export function VehicleFormPage() {
           onCancel={() => navigate('/vehicles')}
         />
       </QueryState>
-    </>
+    </div>
   )
 }

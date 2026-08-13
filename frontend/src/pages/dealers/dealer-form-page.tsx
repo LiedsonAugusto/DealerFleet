@@ -13,7 +13,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useCepLookup } from '@/hooks/use-cep-lookup'
 import { useCreateDealer, useDealer, useUpdateDealer } from '@/hooks/use-dealers'
 import { useToast } from '@/hooks/use-toast'
-import { applyFieldErrors, errorDetail, errorMessage } from '@/lib/api-errors'
+import { applyFieldErrors, errorMessage } from '@/lib/api-errors'
 import { maskCep, maskCnpj, onlyDigits } from '@/lib/format'
 import { BRAZILIAN_STATES } from '@/lib/states'
 import type { DealerFormValues } from '@/schemas/dealer'
@@ -91,7 +91,7 @@ function DealerForm({
         notify({
           tone: 'error',
           message: errorMessage(error),
-          detail: 'Preencha o endereço manualmente',
+          description: 'Preencha o endereço manualmente',
         })
       },
     })
@@ -100,7 +100,7 @@ function DealerForm({
   const submit = handleSubmit((values) => onSubmit(toDealerInput(values), setError))
 
   return (
-    <form onSubmit={submit} noValidate className="max-w-3xl">
+    <form onSubmit={submit} noValidate>
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Identificação
@@ -343,18 +343,14 @@ export function DealerFormPage() {
       onError: (submitError) => {
         const mapped = applyFieldErrors(submitError, setError)
         if (!mapped) {
-          notify({
-            tone: 'error',
-            message: errorMessage(submitError),
-            detail: errorDetail(submitError),
-          })
+          notify({ tone: 'error', message: errorMessage(submitError) })
         }
       },
     })
   }
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-3xl">
       <PageHeader
         title={isEdit ? 'Editar concessionária' : 'Nova concessionária'}
         description={
@@ -377,6 +373,6 @@ export function DealerFormPage() {
           onCancel={() => navigate('/dealers')}
         />
       </QueryState>
-    </>
+    </div>
   )
 }
