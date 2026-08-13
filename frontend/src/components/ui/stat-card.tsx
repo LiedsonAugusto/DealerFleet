@@ -22,7 +22,11 @@ type StatCardProps = {
 
 export function StatCard({ label, value, hint, icon, tone = 'brand', loading }: StatCardProps) {
   return (
-    <div className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      role="group"
+      aria-label={label}
+      className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
       <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg ring-1', TONES[tone])}>
         <Icon name={icon} className="size-5" />
       </span>

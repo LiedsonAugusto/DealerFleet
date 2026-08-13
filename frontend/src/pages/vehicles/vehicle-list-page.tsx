@@ -326,6 +326,7 @@ export function VehicleListPage() {
                   </td>
                   <td>
                     <SelectFilter
+                      label="Filtrar por combustível"
                       value={filters.fuel ?? ''}
                       onChange={(value) => setFilter('fuel', value)}
                       options={FUEL_OPTIONS}
@@ -348,6 +349,7 @@ export function VehicleListPage() {
                   <td />
                   <td>
                     <SelectFilter
+                      label="Filtrar por concessionária"
                       value={filters.dealer ?? ''}
                       onChange={(value) => setFilter('dealer', value)}
                       options={dealerOptions}
@@ -393,7 +395,7 @@ export function VehicleListPage() {
                           onClick={() => navigate(`/vehicles/${vehicle.id}/edit`)}
                         >
                           <Icon name="pencil" />
-                          <span className="sr-only">Editar</span>
+                          <span className="sr-only">Editar veículo</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -403,7 +405,7 @@ export function VehicleListPage() {
                           onClick={() => setPendingDelete(vehicle)}
                         >
                           <Icon name="trash" />
-                          <span className="sr-only">Excluir</span>
+                          <span className="sr-only">Excluir veículo</span>
                         </Button>
                       </div>
                     </TableCell>

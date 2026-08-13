@@ -52,6 +52,7 @@ type SelectFilterProps = {
   value: string
   onChange: (value: string) => void
   options: Option[]
+  label: string
   placeholder?: string
 }
 
@@ -59,13 +60,14 @@ export function SelectFilter({
   value,
   onChange,
   options,
+  label,
   placeholder = 'Todos',
 }: SelectFilterProps) {
   return (
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      aria-label={placeholder}
+      aria-label={label}
       className={cn(baseClasses, 'cursor-pointer')}
     >
       <option value="">{placeholder}</option>

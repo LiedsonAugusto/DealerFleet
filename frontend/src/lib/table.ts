@@ -27,16 +27,7 @@ export function matchesExact(cell: CellValue, filter: string): boolean {
   return String(cell ?? '') === filter
 }
 
-function compare(a: CellValue, b: CellValue): number {
-  if (a === null && b === null) {
-    return 0
-  }
-  if (a === null) {
-    return 1
-  }
-  if (b === null) {
-    return -1
-  }
+function compare(a: Exclude<CellValue, null>, b: Exclude<CellValue, null>): number {
   if (typeof a === 'number' && typeof b === 'number') {
     return a - b
   }
@@ -53,7 +44,23 @@ export function sortRows<T>(
   }
 
   const factor = direction === 'desc' ? -1 : 1
-  return [...rows].sort((a, b) => compare(accessor(a), accessor(b)) * factor)
+
+  return [...rows].sort((rowA, rowB) => {
+    const a = accessor(rowA)
+    const b = accessor(rowB)
+
+    if (a === null && b === null) {
+      return 0
+    }
+    if (a === null) {
+      return 1
+    }
+    if (b === null) {
+      return -1
+    }
+
+    return compare(a, b) * factor
+  })
 }
 
 export function pageCount(total: number, size: number): number {

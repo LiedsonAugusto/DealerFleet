@@ -52,7 +52,8 @@ services:
     ports:
       - "3000:80"
     volumes:
-      - ./backend/target/site/jacoco:/usr/share/nginx/html/coverage:ro
+      - ./backend/target/site/jacoco:/usr/share/nginx/html/coverage/api:ro
+      - ./frontend/coverage:/usr/share/nginx/html/coverage/web:ro
     depends_on:
       backend:
         condition: service_healthy

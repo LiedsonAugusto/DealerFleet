@@ -301,6 +301,7 @@ export function DealerListPage() {
                   </td>
                   <td>
                     <SelectFilter
+                      label="Filtrar por estado"
                       value={filters.state ?? ''}
                       onChange={(value) => setFilter('state', value)}
                       options={stateOptions}
@@ -345,7 +346,7 @@ export function DealerListPage() {
                           onClick={() => navigate(`/dealers/${dealer.id}/edit`)}
                         >
                           <Icon name="pencil" />
-                          <span className="sr-only">Editar</span>
+                          <span className="sr-only">Editar concessionária</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -355,7 +356,7 @@ export function DealerListPage() {
                           onClick={() => setPendingDelete(dealer)}
                         >
                           <Icon name="trash" />
-                          <span className="sr-only">Excluir</span>
+                          <span className="sr-only">Excluir concessionária</span>
                         </Button>
                       </div>
                     </TableCell>
