@@ -1,0 +1,12 @@
+node_modules
+dist
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+.env
+.env.local
+.env.*.local
+*.log
+.git
+.vscode
+.idea
