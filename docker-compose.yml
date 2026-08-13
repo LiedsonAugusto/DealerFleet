@@ -28,6 +28,7 @@ services:
       DB_USER: dealerfleet
       DB_PASSWORD: dealerfleet
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      SEED_ENABLED: "true"
     ports:
       - "8080:8080"
     depends_on:
