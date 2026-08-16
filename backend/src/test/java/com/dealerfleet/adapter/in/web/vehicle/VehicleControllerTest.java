@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -209,6 +210,21 @@ class VehicleControllerTest {
                 .hasStatus(HttpStatus.CONFLICT)
                 .bodyJson()
                 .extractingPath("$.title").isEqualTo("Regra de negocio violada");
+    }
+
+    @Test
+    @DisplayName("POST /vehicles com chassi duplicado por corrida vira 409 e nao 500")
+    void createWithConcurrentDuplicatedChassisReturnsConflict() {
+        when(vehicles.create(any(), any()))
+                .thenThrow(new DataIntegrityViolationException("uk_vehicle_chassis"));
+
+        assertThat(mvc.post().uri("/vehicles").contentType(MediaType.APPLICATION_JSON).content(validBody()))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.title").isEqualTo("Regra de negocio violada");
+
+        assertThat(mvc.post().uri("/vehicles").contentType(MediaType.APPLICATION_JSON).content(validBody()))
+                .bodyText().doesNotContain("uk_vehicle_chassis");
     }
 
     @Test

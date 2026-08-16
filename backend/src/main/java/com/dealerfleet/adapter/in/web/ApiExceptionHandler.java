@@ -3,6 +3,7 @@ package com.dealerfleet.adapter.in.web;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -32,6 +33,12 @@ class ApiExceptionHandler {
     ProblemDetail handleBusinessRule(BusinessRuleException exception) {
         log.warn("Regra de negocio violada: {}", exception.getMessage());
         return problem(HttpStatus.CONFLICT, "Regra de negocio violada", exception.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException exception) {
+        log.warn("Violacao de integridade no banco", exception);
+        return problem(HttpStatus.CONFLICT, "Regra de negocio violada", "Registro ja cadastrado");
     }
 
     @ExceptionHandler(InvalidValueException.class)
