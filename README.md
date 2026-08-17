@@ -40,9 +40,11 @@ O banco sobe com carga inicial de 5 concessionárias e 16 veículos. São dados 
 
 Para rodar cada parte isoladamente, sem Docker, veja os READMEs do [backend](backend/README.md) e do [frontend](frontend/README.md).
 
-### Apontando para um PostgreSQL externo
+### Apontando para um PostgreSQL externo (Amazon RDS)
 
-O Compose usa o banco em container por padrão, mas aceita um banco externo — um PostgreSQL na sua máquina ou uma instância gerenciada na nuvem. As variáveis do backend têm valor padrão:
+O Compose usa o banco em container por padrão, mas aceita um banco externo. Este projeto foi validado contra uma instância **PostgreSQL no Amazon RDS**: a aplicação sobe apontando para ela sem nenhuma alteração de código, e o `ddl-auto: validate` confirma que o schema versionado bate com o mapeamento JPA. O mesmo mecanismo serve para qualquer PostgreSQL alcançável — local ou gerenciado por outro provedor.
+
+As variáveis do backend têm valor padrão:
 
 ```yaml
 DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/dealerfleet}
@@ -51,8 +53,14 @@ DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/dealerfleet}
 Basta criar um `.env` na raiz, a partir do `.env.example`, com o endereço e as credenciais do banco de destino. Como o Compose lê esse arquivo sozinho, o comando continua o mesmo:
 
 ```bash
-cp .env.example .env    # preencha com o seu banco
+cp .env.example .env    # preencha com o endpoint e as credenciais do banco
 docker compose up -d
+```
+
+No caso do RDS, o `DB_URL` usa o endpoint da instância e exige TLS:
+
+```properties
+DB_URL=jdbc:postgresql://<instancia>.<id>.<regiao>.rds.amazonaws.com:5432/dealerfleet?sslmode=require
 ```
 
 | | Sem `.env` | Com `.env` |

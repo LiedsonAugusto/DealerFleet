@@ -45,9 +45,11 @@ Usei `validate` no perfil `docker` de propósito: assim a aplicação não alter
 | `SEED_ENABLED` | `true` em `dev` | Liga a carga inicial |
 | `VIACEP_BASE_URL` | `https://viacep.com.br/ws` | Permite apontar para um dublê |
 
-### Apontando para um PostgreSQL externo
+### Apontando para um PostgreSQL externo (Amazon RDS)
 
 O perfil `docker` não presume onde o banco está — ele lê o endereço do ambiente. O mesmo artefato compilado roda contra o container do Compose, contra um PostgreSQL instalado na máquina ou contra uma instância gerenciada na nuvem. Muda só o `DB_URL`.
+
+Foi assim que validei o projeto contra uma instância **PostgreSQL no Amazon RDS**: instância no nível gratuito, acesso público com o security group liberando a porta 5432 apenas para o meu IP, e conexão exigindo TLS via `sslmode=require`. Nenhuma linha de código mudou entre rodar local e rodar contra a nuvem.
 
 Para não repetir variáveis no terminal a cada execução, o `application.yml` importa um arquivo opcional:
 
