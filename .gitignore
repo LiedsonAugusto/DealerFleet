@@ -1,0 +1,10 @@
+.env
+.env.local
+.env.*.local
+
+.idea/
+.vscode/
+
+docs/apresentacao.md
+docs/perguntas-tecnicas.md
+docs/respostas.txt

@@ -24,11 +24,11 @@ services:
     container_name: dealerfleet-backend
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:postgresql://postgres:5432/dealerfleet
-      DB_USER: dealerfleet
-      DB_PASSWORD: dealerfleet
-      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
-      SEED_ENABLED: "true"
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/dealerfleet}
+      DB_USER: ${DB_USER:-dealerfleet}
+      DB_PASSWORD: ${DB_PASSWORD:-dealerfleet}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      SEED_ENABLED: ${SEED_ENABLED:-true}
     ports:
       - "8080:8080"
     depends_on:

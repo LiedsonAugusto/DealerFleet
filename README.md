@@ -2,7 +2,7 @@
 
 Aplicação web para cadastro, consulta, alteração e exclusão de veículos e concessionárias, com associação entre eles. Frontend e backend separados, comunicando por API REST.
 
-Desafio técnico.
+Projeto desenvolvido como desafio técnico.
 
 ## Stack
 
@@ -24,9 +24,9 @@ cd DealerFleet
 docker compose up --build
 ```
 
-Na primeira execução o build roda as duas suítes de teste, então demora alguns minutos. **Se algum teste falhar, o build falha** — é proposital.
+Na primeira execução o build roda os testes do backend e do frontend, então demora alguns minutos. Se algum teste falhar, o build falha junto — deixei assim de propósito, para não gerar imagem com teste quebrado.
 
-Pronto isso, os endereços são:
+Feito isso, os endereços são:
 
 | O quê | Endereço |
 |---|---|
@@ -39,6 +39,32 @@ Pronto isso, os endereços são:
 O banco sobe com carga inicial de 5 concessionárias e 16 veículos. São dados fictícios, apenas para demonstração.
 
 Para rodar cada parte isoladamente, sem Docker, veja os READMEs do [backend](backend/README.md) e do [frontend](frontend/README.md).
+
+### Apontando para um PostgreSQL externo
+
+O Compose usa o banco em container por padrão, mas aceita um banco externo — um PostgreSQL na sua máquina ou uma instância gerenciada na nuvem. As variáveis do backend têm valor padrão:
+
+```yaml
+DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/dealerfleet}
+```
+
+Basta criar um `.env` na raiz, a partir do `.env.example`, com o endereço e as credenciais do banco de destino. Como o Compose lê esse arquivo sozinho, o comando continua o mesmo:
+
+```bash
+cp .env.example .env    # preencha com o seu banco
+docker compose up -d
+```
+
+| | Sem `.env` | Com `.env` |
+|---|---|---|
+| `docker compose up` | banco em container | banco externo |
+| `mvnw spring-boot:run` | H2 em memória | banco externo |
+
+O mesmo arquivo serve para os dois porque o `application.yml` também o importa, de forma opcional. Sem o arquivo, nada muda: quem clonar o repositório roda tudo local com um comando só.
+
+Duas observações. O banco externo precisa das tabelas antes, porque o perfil `docker` usa `ddl-auto: validate` e não cria schema — aplique o [`docs/schema.sql`](docs/schema.sql) uma vez no destino. E o container do PostgreSQL continua subindo mesmo quando não é usado; para evitar isso, `docker compose up -d --no-deps backend frontend`.
+
+O `.env` está no `.gitignore`. Nenhuma credencial real é versionada.
 
 ## Arquitetura
 
@@ -55,16 +81,18 @@ flowchart TB
     end
 
     viacep["<b>ViaCEP</b><br/>serviço externo"]
+    schema["docs/schema.sql"]
 
     browser -->|HTTP| front
     front -->|"/api/ → proxy_pass"| back
     back -->|JDBC| db
     back -->|HTTPS| viacep
+    schema -.->|initdb| db
 ```
 
-O nginx serve o SPA e repassa `/api/` para o backend. Como o navegador conversa só com o nginx, tudo acontece na mesma origem e não há CORS envolvido no fluxo do Docker.
+O nginx serve o site e repassa tudo que começa com `/api/` para o backend. Como o navegador só conversa com o nginx, as duas coisas ficam no mesmo endereço e não existe CORS no fluxo do Docker.
 
-O schema do banco é criado a partir de [`docs/schema.sql`](docs/schema.sql) na inicialização do container. O backend sobe com `ddl-auto: validate`, ou seja, ele recusa iniciar se o mapeamento JPA divergir desse arquivo.
+As tabelas do banco são criadas pelo [`docs/schema.sql`](docs/schema.sql) quando o container do PostgreSQL sobe pela primeira vez. O backend usa `ddl-auto: validate`, então ele não cria nem altera tabela: se o mapeamento JPA não bater com o script, a aplicação não inicia.
 
 ### Arquitetura hexagonal do backend
 
@@ -93,7 +121,7 @@ flowchart LR
     ext["ViaCEP"]
 
     ctrl --> pin
-    pin --> svc
+    svc -.->|implementa| pin
     svc --> d
     svc --> pout
     pers -.->|implementa| pout
@@ -102,12 +130,14 @@ flowchart LR
     vcep --> ext
 ```
 
-As dependências apontam para dentro. O pacote `domain` não importa Spring, JPA nem HTTP — é Java puro, e por isso é testável sem subir contexto nenhum.
+Seta cheia significa "depende de", seta tracejada significa "implementa". Nenhuma seta cheia sai do centro: o pacote `domain` não usa Spring, JPA nem HTTP. É Java puro, e por isso dá para testar sem subir a aplicação.
 
-Dois detalhes que valem reparar:
+As duas tracejadas que saem dos adapters são o ponto principal do desenho. O `VehicleService` chama o banco em tempo de execução, mas quem depende de quem no código é o contrário: o adapter é que implementa a interface que está na camada de dentro. Isso é inversão de dependência, e é o que permite trocar o banco sem mexer em regra de negócio.
 
-- **O `DataSeeder` entra pela mesma porta que os controllers.** Ele não fala com repositório: chama `ManageDealerUseCase`. A carga inicial passa pelas mesmas validações de qualquer cadastro feito pela tela.
-- **As portas de saída são o que os testes de serviço substituem por dublê.** É por isso que `application.service` está em 100% de cobertura sem encostar em banco.
+Dois pontos importantes:
+
+- **O `DataSeeder` usa a mesma porta que os controllers.** Ele não acessa repositório: chama `ManageDealerUseCase`. Então a carga inicial passa pelas mesmas validações de um cadastro feito pela tela.
+- **Nos testes de serviço, as portas de saída são substituídas por mocks.** É o que permite testar `application.service` sem acessar o banco.
 
 ## API
 
@@ -142,14 +172,14 @@ Base: `http://localhost:8080`. Contrato completo no [Swagger](http://localhost:8
 |---|---|---|
 | `GET` | `/cep/{cep}` | Consulta endereço no ViaCEP |
 
-Erros seguem [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) (`application/problem+json`). Erros de validação trazem um objeto `errors` com a mensagem por campo, que o frontend usa para marcar o campo correspondente no formulário.
+Os erros seguem o padrão [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) (`application/problem+json`). Quando é erro de validação, a resposta traz um objeto `errors` com a mensagem de cada campo, e o frontend usa isso para marcar o campo certo no formulário.
 
-Toda requisição carrega um `X-Request-Id`, gerado pelo frontend ou pelo backend, propagado ao log e devolvido na resposta.
+Toda requisição tem um `X-Request-Id`. O frontend envia um; se não vier, o backend gera. Ele vai para o log e volta no cabeçalho da resposta, o que permite achar nos logs exatamente a requisição que deu problema.
 
 ## Testes
 
 ```bash
-cd backend  && ./mvnw test        # 181 testes
+cd backend  && ./mvnw test        # 182 testes
 cd frontend && yarn test:coverage # 159 testes
 ```
 
@@ -157,10 +187,10 @@ Os relatórios ficam publicados na própria aplicação, em http://localhost:300
 
 | | Testes | Cobertura |
 |---|---|---|
-| Backend | 181 | 99,7% instruções · 99% branches |
+| Backend | 182 | 99,7% instruções · 99% branches |
 | Frontend | 159 | 87,5% statements · 89,8% branches |
 
-A cobertura acompanha o risco: domínio, serviços e schemas de validação estão em 100%; o que fica abaixo é componente de apresentação, sem ramificação nem regra de negócio.
+A cobertura é maior onde tem regra de negócio: domínio, serviços e schemas de validação estão em 100%. O que fica abaixo disso é componente de tela, que praticamente não tem lógica.
 
 ## Requisitos do desafio
 
@@ -188,11 +218,11 @@ A cobertura acompanha o risco: domínio, serviços e schemas de validação est�
 |---|---|
 | Integração ViaCEP | Feito — preenchimento automático a partir do CEP |
 | Docker: banco, aplicação e Compose | Feito |
-| Testes unitários | Feito — 340 testes |
+| Testes unitários | Feito — 341 testes |
 | Observabilidade: logs estruturados | Feito — formato ECS no perfil `docker`, com correlação por requisição |
 | Documentação da API: Swagger/OpenAPI | Feito |
 | Responsividade | Feito |
-| **Deploy em AWS** | **Não feito** — escopo reduzido por prazo |
+| **Deploy em AWS** | **Parcial** — banco em Amazon RDS; aplicação não publicada |
 
 ## Estrutura do repositório
 
@@ -202,5 +232,6 @@ A cobertura acompanha o risco: domínio, serviços e schemas de validação est�
 ├── frontend/         SPA em React                   → frontend/README.md
 ├── docs/
 │   └── schema.sql    DDL do PostgreSQL
+├── .env.example      Variáveis para apontar a um banco externo
 └── docker-compose.yml
 ```
