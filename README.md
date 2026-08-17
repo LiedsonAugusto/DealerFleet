@@ -230,8 +230,8 @@ Os relatórios ficam publicados na própria aplicação, em http://localhost:300
 
 | | Testes | Cobertura |
 |---|---|---|
-| Backend | 182 | 99,7% instruções · 99% branches |
-| Frontend | 159 | 87,5% statements · 89,8% branches |
+| Backend | 211 | 99,1% instruções · 94,2% branches |
+| Frontend | 162 | 87,2% statements · 89,2% branches |
 
 A cobertura é maior onde tem regra de negócio: domínio, serviços e schemas de validação estão em 100%. O que fica abaixo disso é componente de tela, que praticamente não tem lógica.
 
