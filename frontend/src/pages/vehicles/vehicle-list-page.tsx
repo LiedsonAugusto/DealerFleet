@@ -23,15 +23,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useDealers } from '@/hooks/use-dealers'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { useTableParams } from '@/hooks/use-table-params'
 import { useToast } from '@/hooks/use-toast'
-import { useDeleteVehicle, useVehicles } from '@/hooks/use-vehicles'
+import { useDeleteVehicle, useVehicleSummary, useVehicles } from '@/hooks/use-vehicles'
 import { errorMessage } from '@/lib/api-errors'
 import { empty, formatCompactCurrency, formatCurrency } from '@/lib/format'
 import { FUEL_LABELS } from '@/lib/labels'
-import type { CellValue } from '@/lib/table'
-import { matchesText, pageCount, pageSlice, sortRows } from '@/lib/table'
-import type { FuelType, Vehicle } from '@/types'
+import type { FuelType, Vehicle, VehicleListParams } from '@/types'
 import { FUEL_TYPES } from '@/types'
 
 const FUEL_TONES: Record<FuelType, 'neutral' | 'brand' | 'success'> = {
@@ -53,10 +52,6 @@ export function VehicleListPage() {
 
   const [pendingDelete, setPendingDelete] = useState<Vehicle | null>(null)
 
-  const vehicles = useVehicles()
-  const dealers = useDealers()
-  const remove = useDeleteVehicle()
-
   const {
     filters,
     sort,
@@ -71,7 +66,32 @@ export function VehicleListPage() {
     clearFilters,
   } = useTableParams({ defaultSize: 10 })
 
-  const rows = useMemo(() => vehicles.data ?? [], [vehicles.data])
+  const debouncedFilters = useDebouncedValue(filters)
+
+  const params = useMemo<VehicleListParams>(
+    () => ({
+      page,
+      size,
+      sort: sort ?? undefined,
+      dir: direction,
+      q: debouncedFilters.q,
+      brand: debouncedFilters.brand,
+      model: debouncedFilters.model,
+      color: debouncedFilters.color,
+      year: debouncedFilters.year,
+      fuel: debouncedFilters.fuel,
+      dealer: debouncedFilters.dealer,
+    }),
+    [page, size, sort, direction, debouncedFilters],
+  )
+
+  const vehicles = useVehicles(params)
+  const summary = useVehicleSummary()
+  const dealers = useDealers()
+  const remove = useDeleteVehicle()
+
+  const rows = useMemo(() => vehicles.data?.content ?? [], [vehicles.data])
+  const total = vehicles.data?.totalElements ?? 0
 
   const dealerNames = useMemo(
     () => new Map((dealers.data ?? []).map((dealer) => [dealer.id, dealer.corporateName])),
@@ -89,73 +109,9 @@ export function VehicleListPage() {
     [dealers.data],
   )
 
-  const accessors = useMemo<Record<string, (vehicle: Vehicle) => CellValue>>(
-    () => ({
-      brand: (vehicle) => vehicle.brand,
-      model: (vehicle) => vehicle.model,
-      fuelType: (vehicle) => FUEL_LABELS[vehicle.fuelType],
-      color: (vehicle) => vehicle.color,
-      year: (vehicle) => vehicle.year,
-      price: (vehicle) => vehicle.price,
-      dealer: (vehicle) =>
-        vehicle.dealerId === null ? null : (dealerNames.get(vehicle.dealerId) ?? ''),
-    }),
-    [dealerNames],
-  )
-
-  const filtered = useMemo(() => {
-    const search = filters.q ?? ''
-    const dealerFilter = filters.dealer ?? ''
-
-    return rows.filter((vehicle) => {
-      if (
-        search !== ''
-        && ![vehicle.brand, vehicle.model, vehicle.color, vehicle.chassis].some((field) =>
-          matchesText(field, search),
-        )
-      ) {
-        return false
-      }
-
-      if (dealerFilter === UNASSIGNED && vehicle.dealerId !== null) {
-        return false
-      }
-      if (dealerFilter !== '' && dealerFilter !== UNASSIGNED && vehicle.dealerId !== dealerFilter) {
-        return false
-      }
-      if (filters.fuel !== undefined && vehicle.fuelType !== filters.fuel) {
-        return false
-      }
-
-      return (
-        matchesText(vehicle.brand, filters.brand ?? '')
-        && matchesText(vehicle.model, filters.model ?? '')
-        && matchesText(vehicle.color, filters.color ?? '')
-        && matchesText(vehicle.year, filters.year ?? '')
-      )
-    })
-  }, [rows, filters])
-
-  const sorted = useMemo(
-    () => sortRows(filtered, sort ? accessors[sort] : undefined, direction),
-    [filtered, sort, direction, accessors],
-  )
-
-  const totalPages = pageCount(sorted.length, size)
-  const currentPage = Math.min(page, totalPages)
-  const paged = useMemo(
-    () => pageSlice(sorted, currentPage, size),
-    [sorted, currentPage, size],
-  )
-
-  const fleetValue = useMemo(
-    () => rows.reduce((total, vehicle) => total + (vehicle.price ?? 0), 0),
-    [rows],
-  )
-  const unassigned = useMemo(
-    () => rows.filter((vehicle) => vehicle.dealerId === null).length,
-    [rows],
-  )
+  const fleetValue = summary.data?.fleetValue ?? 0
+  const unassigned = summary.data?.unassigned ?? 0
+  const registered = summary.data?.total ?? 0
 
   function handleDelete() {
     if (!pendingDelete) {
@@ -193,10 +149,10 @@ export function VehicleListPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Veículos"
-          value={String(rows.length)}
+          value={String(registered)}
           icon="truck"
           tone="brand"
-          loading={vehicles.isPending}
+          loading={summary.isPending}
         />
         <StatCard
           label="Valor da frota"
@@ -204,7 +160,7 @@ export function VehicleListPage() {
           hint={formatCurrency(fleetValue)}
           icon="wallet"
           tone="emerald"
-          loading={vehicles.isPending}
+          loading={summary.isPending}
         />
         <StatCard
           label="Concessionárias"
@@ -219,7 +175,7 @@ export function VehicleListPage() {
           hint={unassigned > 0 ? 'Aguardando concessionária' : 'Toda a frota vinculada'}
           icon="unlink"
           tone={unassigned > 0 ? 'amber' : 'slate'}
-          loading={vehicles.isPending}
+          loading={summary.isPending}
         />
       </div>
 
@@ -244,7 +200,7 @@ export function VehicleListPage() {
         onRetry={() => void vehicles.refetch()}
         skeleton={<TableSkeleton columns={6} rows={size > 10 ? 10 : size} />}
       >
-        {rows.length === 0 ? (
+        {registered === 0 && activeFilters === 0 ? (
           <EmptyState
             title="Nenhum veículo cadastrado"
             description="Cadastre o primeiro veículo da frota para começar."
@@ -299,13 +255,7 @@ export function VehicleListPage() {
                     align="right"
                     className="text-right"
                   />
-                  <SortableHeader
-                    label="Concessionária"
-                    columnKey="dealer"
-                    sort={sort}
-                    direction={direction}
-                    onSort={toggleSort}
-                  />
+                  <TableHeader>Concessionária</TableHeader>
                   <TableHeader className="text-right">Ações</TableHeader>
                 </tr>
 
@@ -360,7 +310,7 @@ export function VehicleListPage() {
               </TableHead>
 
               <TableBody>
-                {paged.map((vehicle) => (
+                {rows.map((vehicle) => (
                   <TableRow key={vehicle.id}>
                     <TableCell className="font-medium text-slate-900">{vehicle.brand}</TableCell>
                     <TableCell>{vehicle.model}</TableCell>
@@ -412,7 +362,7 @@ export function VehicleListPage() {
                   </TableRow>
                 ))}
 
-                {paged.length === 0 && (
+                {rows.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center">
                       <p className="text-sm font-medium text-slate-900">
@@ -428,9 +378,9 @@ export function VehicleListPage() {
             </Table>
 
             <Pagination
-              page={currentPage}
+              page={page}
               size={size}
-              total={sorted.length}
+              total={total}
               onPageChange={setPage}
               onSizeChange={setSize}
             />

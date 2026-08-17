@@ -87,7 +87,7 @@ O desafio listava shadcn/ui como opcional. Os componentes de base foram escritos
 Vitest com Testing Library, ambiente jsdom.
 
 ```bash
-yarn test           # 159 testes
+yarn test           # 162 testes
 yarn test:coverage  # relatório em coverage/index.html
 ```
 

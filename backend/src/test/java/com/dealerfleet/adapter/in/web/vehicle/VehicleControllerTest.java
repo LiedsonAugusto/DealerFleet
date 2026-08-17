@@ -22,6 +22,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
+import com.dealerfleet.application.port.PageQuery;
+import com.dealerfleet.application.port.PageResult;
+import com.dealerfleet.application.port.SortDirection;
+import com.dealerfleet.application.port.VehicleQuery;
+import com.dealerfleet.application.port.VehicleSummary;
 import com.dealerfleet.application.port.in.ManageVehicleUseCase;
 import com.dealerfleet.domain.exception.BusinessRuleException;
 import com.dealerfleet.domain.exception.NotFoundException;
@@ -77,15 +82,137 @@ class VehicleControllerTest {
         return body("Fiat", "FLEX", "\"" + CHASSIS + "\"", "94990.00", "null");
     }
 
+    private static PageResult<Vehicle> page(Vehicle... found) {
+        return PageResult.of(List.of(found), PageQuery.first(), found.length);
+    }
+
     @Test
-    @DisplayName("GET /vehicles lista os veiculos cadastrados")
-    void findAllReturnsVehicles() {
-        when(vehicles.findAll()).thenReturn(List.of(vehicle(DEALER_ID)));
+    @DisplayName("GET /vehicles devolve o envelope paginado com o conteudo da pagina")
+    void searchReturnsPagedEnvelope() {
+        when(vehicles.search(any(), any())).thenReturn(page(vehicle(DEALER_ID)));
 
         assertThat(mvc.get().uri("/vehicles"))
                 .hasStatusOk()
                 .bodyJson()
-                .extractingPath("$[0].model").isEqualTo("Argo");
+                .extractingPath("$.content[0].model").isEqualTo("Argo");
+
+        assertThat(mvc.get().uri("/vehicles")).bodyJson().extractingPath("$.page").isEqualTo(1);
+        assertThat(mvc.get().uri("/vehicles")).bodyJson().extractingPath("$.size").isEqualTo(10);
+        assertThat(mvc.get().uri("/vehicles")).bodyJson().extractingPath("$.totalElements").isEqualTo(1);
+        assertThat(mvc.get().uri("/vehicles")).bodyJson().extractingPath("$.totalPages").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("GET /vehicles sem parametros usa a primeira pagina com o tamanho padrao")
+    void searchWithoutParametersUsesDefaults() {
+        when(vehicles.search(any(), any())).thenReturn(page());
+        ArgumentCaptor<PageQuery> pageQuery = ArgumentCaptor.forClass(PageQuery.class);
+
+        assertThat(mvc.get().uri("/vehicles")).hasStatusOk();
+
+        verify(vehicles).search(any(), pageQuery.capture());
+        assertThat(pageQuery.getValue().page()).isEqualTo(1);
+        assertThat(pageQuery.getValue().size()).isEqualTo(PageQuery.DEFAULT_SIZE);
+        assertThat(pageQuery.getValue().isSorted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GET /vehicles repassa paginacao e ordenacao para o caso de uso")
+    void searchForwardsPagingAndSorting() {
+        when(vehicles.search(any(), any())).thenReturn(page());
+        ArgumentCaptor<PageQuery> pageQuery = ArgumentCaptor.forClass(PageQuery.class);
+
+        assertThat(mvc.get().uri("/vehicles?page=3&size=25&sort=price&dir=desc")).hasStatusOk();
+
+        verify(vehicles).search(any(), pageQuery.capture());
+        assertThat(pageQuery.getValue().page()).isEqualTo(3);
+        assertThat(pageQuery.getValue().size()).isEqualTo(25);
+        assertThat(pageQuery.getValue().sort()).isEqualTo("price");
+        assertThat(pageQuery.getValue().direction()).isEqualTo(SortDirection.DESC);
+    }
+
+    @Test
+    @DisplayName("GET /vehicles limita o tamanho de pagina ao teto configurado")
+    void searchClampsPageSize() {
+        when(vehicles.search(any(), any())).thenReturn(page());
+        ArgumentCaptor<PageQuery> pageQuery = ArgumentCaptor.forClass(PageQuery.class);
+
+        assertThat(mvc.get().uri("/vehicles?size=5000&page=-4")).hasStatusOk();
+
+        verify(vehicles).search(any(), pageQuery.capture());
+        assertThat(pageQuery.getValue().size()).isEqualTo(PageQuery.MAX_SIZE);
+        assertThat(pageQuery.getValue().page()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("GET /vehicles repassa os filtros da tela para o caso de uso")
+    void searchForwardsFilters() {
+        when(vehicles.search(any(), any())).thenReturn(page());
+        ArgumentCaptor<VehicleQuery> query = ArgumentCaptor.forClass(VehicleQuery.class);
+
+        assertThat(mvc.get().uri("/vehicles?q=pulse&brand=fiat&model=arg&color=prata&year=2025"
+                + "&fuel=DIESEL&dealer=" + DEALER_ID)).hasStatusOk();
+
+        verify(vehicles).search(query.capture(), any());
+        assertThat(query.getValue().search()).isEqualTo("pulse");
+        assertThat(query.getValue().brand()).isEqualTo("fiat");
+        assertThat(query.getValue().model()).isEqualTo("arg");
+        assertThat(query.getValue().color()).isEqualTo("prata");
+        assertThat(query.getValue().year()).isEqualTo("2025");
+        assertThat(query.getValue().fuelType()).isEqualTo(FuelType.DIESEL);
+        assertThat(query.getValue().dealerId()).isEqualTo(DEALER_ID);
+        assertThat(query.getValue().unassigned()).isFalse();
+    }
+
+    @Test
+    @DisplayName("GET /vehicles?dealer=none pede apenas os veiculos sem vinculo")
+    void searchFiltersUnassigned() {
+        when(vehicles.search(any(), any())).thenReturn(page());
+        ArgumentCaptor<VehicleQuery> query = ArgumentCaptor.forClass(VehicleQuery.class);
+
+        assertThat(mvc.get().uri("/vehicles?dealer=none")).hasStatusOk();
+
+        verify(vehicles).search(query.capture(), any());
+        assertThat(query.getValue().unassigned()).isTrue();
+        assertThat(query.getValue().dealerId()).isNull();
+    }
+
+    @Test
+    @DisplayName("GET /vehicles com concessionaria malformada devolve 400")
+    void searchWithMalformedDealerReturnsBadRequest() {
+        assertThat(mvc.get().uri("/vehicles?dealer=nao-e-uuid"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.detail").asString().contains("dealer");
+
+        verify(vehicles, never()).search(any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /vehicles com combustivel fora do enum devolve 400")
+    void searchWithUnknownFuelReturnsBadRequest() {
+        assertThat(mvc.get().uri("/vehicles?fuel=ALCOOL"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.title").isEqualTo("Parametro invalido");
+
+        verify(vehicles, never()).search(any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /vehicles/summary totaliza a frota inteira")
+    void summaryReturnsFleetTotals() {
+        when(vehicles.summary()).thenReturn(new VehicleSummary(42, new BigDecimal("1250000.00"), 7));
+
+        assertThat(mvc.get().uri("/vehicles/summary"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.total").isEqualTo(42);
+
+        assertThat(mvc.get().uri("/vehicles/summary")).bodyJson()
+                .extractingPath("$.unassigned").isEqualTo(7);
+        assertThat(mvc.get().uri("/vehicles/summary")).bodyJson()
+                .extractingPath("$.fleetValue").asNumber().isEqualTo(1250000.00);
     }
 
     @Test
@@ -117,7 +244,7 @@ class VehicleControllerTest {
     @Test
     @DisplayName("falha inesperada vira 500 sem vazar o detalhe interno para o cliente")
     void unexpectedFailureReturnsInternalServerError() {
-        when(vehicles.findAll()).thenThrow(new IllegalStateException("conexao com o banco perdida"));
+        when(vehicles.search(any(), any())).thenThrow(new IllegalStateException("conexao com o banco perdida"));
 
         assertThat(mvc.get().uri("/vehicles"))
                 .hasStatus(HttpStatus.INTERNAL_SERVER_ERROR)

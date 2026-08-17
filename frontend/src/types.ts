@@ -18,6 +18,7 @@ export type Dealer = {
   corporateName: string
   cnpj: string
   cnpjFormatted: string
+  vehicleCount: number
   address: Address
 }
 
@@ -58,6 +59,34 @@ export type VehicleInput = {
   price?: number | null
   externalColor?: string | null
   dealerId?: string | null
+}
+
+export type Page<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export type VehicleSummary = {
+  total: number
+  fleetValue: number
+  unassigned: number
+}
+
+export type VehicleListParams = {
+  page?: number
+  size?: number
+  sort?: string
+  dir?: string
+  q?: string
+  brand?: string
+  model?: string
+  color?: string
+  year?: string
+  fuel?: string
+  dealer?: string
 }
 
 export type AddressLookup = {

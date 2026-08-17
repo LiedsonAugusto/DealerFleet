@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -113,6 +114,57 @@ class DealerControllerTest {
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.corporateName").isEqualTo(NAME);
+    }
+
+    @Test
+    @DisplayName("GET /dealer traz o total de veiculos de cada concessionaria")
+    void findAllReturnsVehicleCount() {
+        when(dealers.findAll()).thenReturn(List.of(dealer()));
+        when(vehicles.countByDealers(List.of(ID))).thenReturn(Map.of(ID, 7L));
+
+        assertThat(mvc.get().uri("/dealer"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[0].vehicleCount").isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("GET /dealer conta os veiculos em uma consulta unica, sem uma por concessionaria")
+    void findAllCountsInSingleQuery() {
+        when(dealers.findAll()).thenReturn(List.of(dealer()));
+        when(vehicles.countByDealers(any())).thenReturn(Map.of());
+
+        assertThat(mvc.get().uri("/dealer")).hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[0].vehicleCount").isEqualTo(0);
+
+        verify(vehicles).countByDealers(List.of(ID));
+        verify(vehicles, never()).countByDealer(any());
+    }
+
+    @Test
+    @DisplayName("GET /dealer/{id} traz o total de veiculos vinculados")
+    void findByIdReturnsVehicleCount() {
+        when(dealers.findById(ID)).thenReturn(dealer());
+        when(vehicles.countByDealer(ID)).thenReturn(4L);
+
+        assertThat(mvc.get().uri("/dealer/{id}", ID))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.vehicleCount").isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("POST /dealer devolve a concessionaria nova sem veiculos")
+    void createReturnsZeroVehicleCount() {
+        when(dealers.create(any(), any(), any())).thenReturn(dealer());
+
+        assertThat(mvc.post().uri("/dealer").contentType(MediaType.APPLICATION_JSON).content(validBody()))
+                .hasStatus(HttpStatus.CREATED)
+                .bodyJson()
+                .extractingPath("$.vehicleCount").isEqualTo(0);
+
+        verify(vehicles, never()).countByDealer(any());
     }
 
     @Test

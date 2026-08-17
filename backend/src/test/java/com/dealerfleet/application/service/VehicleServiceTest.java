@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.dealerfleet.application.port.PageQuery;
+import com.dealerfleet.application.port.PageResult;
+import com.dealerfleet.application.port.VehicleQuery;
+import com.dealerfleet.application.port.VehicleSummary;
 import com.dealerfleet.application.port.out.DealerRepositoryPort;
 import com.dealerfleet.application.port.out.VehicleRepositoryPort;
 import com.dealerfleet.domain.exception.BusinessRuleException;
@@ -309,5 +314,44 @@ class VehicleServiceTest {
         when(vehicles.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findById(id)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("search repassa filtro e paginacao ao repositorio")
+    void searchDelegatesToRepository() {
+        VehicleQuery query = new VehicleQuery("pulse", null, null, null, null, FuelType.FLEX, null, false);
+        PageQuery page = PageQuery.of(2, 25, "price", "desc");
+
+        when(vehicles.search(query, page))
+                .thenReturn(PageResult.of(List.of(Vehicle.create(spec(), null)), page, 30));
+
+        PageResult<Vehicle> result = service.search(query, page);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.totalElements()).isEqualTo(30);
+        assertThat(result.totalPages()).isEqualTo(2);
+        verify(vehicles).search(query, page);
+    }
+
+    @Test
+    @DisplayName("search sem filtro nem paginacao aplica os padroes em vez de falhar")
+    void searchFallsBackToDefaults() {
+        when(vehicles.search(any(), any())).thenReturn(PageResult.of(List.of(), PageQuery.first(), 0));
+
+        assertThat(service.search(null, null).content()).isEmpty();
+
+        verify(vehicles).search(VehicleQuery.none(), PageQuery.first());
+    }
+
+    @Test
+    @DisplayName("summary repassa a totalizacao do repositorio")
+    void summaryDelegatesToRepository() {
+        when(vehicles.summary()).thenReturn(new VehicleSummary(16, new BigDecimal("2500000.00"), 2));
+
+        VehicleSummary summary = service.summary();
+
+        assertThat(summary.total()).isEqualTo(16);
+        assertThat(summary.fleetValue()).isEqualByComparingTo("2500000.00");
+        assertThat(summary.unassigned()).isEqualTo(2);
     }
 }

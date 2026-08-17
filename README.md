@@ -36,7 +36,7 @@ Feito isso, os endereços são:
 | Cobertura de testes | http://localhost:3000/coverage/ |
 | Banco | `localhost:5432` — base, usuário e senha `dealerfleet` |
 
-O banco sobe com carga inicial de 5 concessionárias e 16 veículos. São dados fictícios, apenas para demonstração.
+O banco sobe com carga inicial de 5 concessionárias e 120 veículos. São dados fictícios, apenas para demonstração.
 
 Para rodar cada parte isoladamente, sem Docker, veja os READMEs do [backend](backend/README.md) e do [frontend](frontend/README.md).
 
@@ -155,7 +155,8 @@ Base: `http://localhost:8080`. Contrato completo no [Swagger](http://localhost:8
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/vehicles` | Lista todos |
+| `GET` | `/vehicles` | Lista paginada, com filtros e ordenação |
+| `GET` | `/vehicles/summary` | Totais da frota inteira |
 | `GET` | `/vehicles/{id}` | Consulta por identificador |
 | `POST` | `/vehicles` | Cadastra |
 | `PUT` | `/vehicles/{id}` | Atualiza |
@@ -167,12 +168,46 @@ Base: `http://localhost:8080`. Contrato completo no [Swagger](http://localhost:8
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/dealer` | Lista todas |
+| `GET` | `/dealer` | Lista todas, com o total de veículos de cada uma |
 | `GET` | `/dealer/{id}` | Consulta por identificador |
 | `POST` | `/dealer` | Cadastra |
 | `PUT` | `/dealer/{id}` | Atualiza |
 | `DELETE` | `/dealer/{id}` | Exclui, se não houver veículo vinculado |
 | `GET` | `/dealer/{id}/vehicles` | Lista os veículos da concessionária |
+
+### Paginação
+
+`GET /vehicles` é o único endpoint paginado. Ele devolve um envelope com a página e os metadados:
+
+```json
+{
+  "content": [ { "id": "...", "brand": "Fiat", "model": "Pulse Drive 1.3" } ],
+  "page": 1,
+  "size": 10,
+  "totalElements": 120,
+  "totalPages": 12
+}
+```
+
+Aceita `page` (começa em 1), `size` (padrão 10, teto 100), `sort`, `dir` e os filtros `q`, `brand`, `model`, `color`, `year`, `fuel` e `dealer` — sendo `dealer=none` o atalho para "sem vínculo". Campos ordenáveis: `brand`, `model`, `fuelType`, `color`, `year`, `price`.
+
+```
+GET /vehicles?page=2&size=25&sort=price&dir=desc&fuel=DIESEL
+```
+
+A ordenação sempre carrega `id` como desempate. Sem isso, linhas com o mesmo valor no campo ordenado podem trocar de posição entre páginas, fazendo registros se repetirem ou sumirem durante a navegação.
+
+Como a página não conhece a frota inteira, os totais da tela vêm de `GET /vehicles/summary`, e a contagem por concessionária vem no campo `vehicleCount` de `/dealer` — resolvida em uma única consulta agrupada, não uma por linha.
+
+**Por que só veículos?** Porque só veículos crescem sem limite — é a tabela que, numa operação real, chega a dezenas de milhares de linhas. Concessionárias são dezenas, e alimentam os `select` e os filtros de combustível e de loja, que precisam da lista completa de qualquer forma: paginá-las obrigaria a criar um segundo endpoint só para desfazer o efeito da paginação. Aplicar o padrão nos dois recursos custaria mais código para entregar menos.
+
+A assimetria é deliberada, e cobrou três preços que vale registrar:
+
+- **A coluna Concessionária deixou de ser ordenável.** Ordenar por nome exigiria `JOIN` com `dealer`, e a entidade guarda apenas `dealerId` — separação deliberada de agregados. Criar a associação obrigaria a expor `DealerJpaEntity` para fora do seu pacote. O filtro por concessionária continua, porque é igualdade direta.
+- **A busca deixou de ignorar acentos.** O cliente normalizava com NFD antes de comparar; no banco virou `lower(coluna) like ?`. Reproduzir o comportamento exigiria a extensão `unaccent` do PostgreSQL, que não existe no H2 do perfil `dev` — a fidelidade custaria uma divergência entre desenvolvimento e produção.
+- **Filtrar deixou de ser instantâneo.** Cada tecla vira requisição, mitigado com debounce de 300 ms e `keepPreviousData`, que mantém a página anterior visível em vez de piscar um esqueleto.
+
+O contrato de paginação é expresso em tipos próprios da camada de aplicação — `PageQuery`, `PageResult`, `VehicleQuery` — e não em `Pageable`/`Page` do Spring Data. A tradução para o framework acontece no adapter de persistência, junto com as `Specifications` que montam os filtros dinâmicos. É a mesma razão pela qual as portas falam `Vehicle` e não `VehicleJpaEntity`: o núcleo não conhece o framework.
 
 ### Endereço
 
@@ -187,8 +222,8 @@ Toda requisição tem um `X-Request-Id`. O frontend envia um; se não vier, o ba
 ## Testes
 
 ```bash
-cd backend  && ./mvnw test        # 182 testes
-cd frontend && yarn test:coverage # 159 testes
+cd backend  && ./mvnw test        # 211 testes
+cd frontend && yarn test:coverage # 162 testes
 ```
 
 Os relatórios ficam publicados na própria aplicação, em http://localhost:3000/coverage/.
@@ -226,7 +261,8 @@ A cobertura é maior onde tem regra de negócio: domínio, serviços e schemas d
 |---|---|
 | Integração ViaCEP | Feito — preenchimento automático a partir do CEP |
 | Docker: banco, aplicação e Compose | Feito |
-| Testes unitários | Feito — 341 testes |
+| Testes unitários | Feito — 373 testes |
+| Paginação, filtro e ordenação no servidor | Feito — em `/vehicles`, com Specifications e contrato paginado. Concessionárias seguem no cliente, por decisão registrada |
 | Observabilidade: logs estruturados | Feito — formato ECS no perfil `docker`, com correlação por requisição |
 | Documentação da API: Swagger/OpenAPI | Feito |
 | Responsividade | Feito |

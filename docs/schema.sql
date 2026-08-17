@@ -30,3 +30,7 @@ CREATE TABLE vehicle (
 );
 
 CREATE INDEX idx_vehicle_dealer ON vehicle (dealer_id);
+CREATE INDEX idx_vehicle_brand ON vehicle (brand);
+CREATE INDEX idx_vehicle_model ON vehicle (model);
+CREATE INDEX idx_vehicle_model_year ON vehicle (model_year);
+CREATE INDEX idx_vehicle_price ON vehicle (price);

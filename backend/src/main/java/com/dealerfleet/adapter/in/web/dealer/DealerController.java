@@ -2,6 +2,7 @@ package com.dealerfleet.adapter.in.web.dealer;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -38,15 +39,20 @@ class DealerController {
     private final ManageVehicleUseCase vehicles;
 
     @GetMapping
-    @Operation(summary = "Lista todas as concessionarias")
+    @Operation(summary = "Lista todas as concessionarias com o total de veiculos de cada uma")
     List<DealerResponse> findAll() {
-        return dealers.findAll().stream().map(DealerResponse::from).toList();
+        List<Dealer> found = dealers.findAll();
+        Map<UUID, Long> counts = vehicles.countByDealers(found.stream().map(Dealer::getId).toList());
+
+        return found.stream()
+                .map(dealer -> DealerResponse.from(dealer, counts.getOrDefault(dealer.getId(), 0L)))
+                .toList();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Consulta uma concessionaria por identificador")
     DealerResponse findById(@PathVariable UUID id) {
-        return DealerResponse.from(dealers.findById(id));
+        return DealerResponse.from(dealers.findById(id), vehicles.countByDealer(id));
     }
 
     @PostMapping
@@ -56,14 +62,16 @@ class DealerController {
 
         return ResponseEntity
                 .created(URI.create("/dealer/" + created.getId()))
-                .body(DealerResponse.from(created));
+                .body(DealerResponse.from(created, 0));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualiza uma concessionaria")
     DealerResponse update(@PathVariable UUID id, @Valid @RequestBody DealerRequest request) {
-        return DealerResponse.from(
-                dealers.update(id, request.corporateName(), request.toCnpj(), request.address().toAddress()));
+        Dealer updated = dealers.update(id, request.corporateName(), request.toCnpj(),
+                request.address().toAddress());
+
+        return DealerResponse.from(updated, vehicles.countByDealer(id));
     }
 
     @DeleteMapping("/{id}")

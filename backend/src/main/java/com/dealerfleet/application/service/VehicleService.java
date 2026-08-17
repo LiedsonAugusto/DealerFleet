@@ -1,11 +1,17 @@
 package com.dealerfleet.application.service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.dealerfleet.application.port.PageQuery;
+import com.dealerfleet.application.port.PageResult;
+import com.dealerfleet.application.port.VehicleQuery;
+import com.dealerfleet.application.port.VehicleSummary;
 import com.dealerfleet.application.port.in.ManageVehicleUseCase;
 import com.dealerfleet.application.port.out.DealerRepositoryPort;
 import com.dealerfleet.application.port.out.VehicleRepositoryPort;
@@ -96,9 +102,34 @@ public class VehicleService implements ManageVehicleUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResult<Vehicle> search(VehicleQuery query, PageQuery page) {
+        return vehicles.search(query == null ? VehicleQuery.none() : query,
+                page == null ? PageQuery.first() : page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VehicleSummary summary() {
+        return vehicles.summary();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Vehicle> findByDealer(UUID dealerId) {
         requireDealerExists(dealerId);
         return vehicles.findByDealerId(dealerId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByDealer(UUID dealerId) {
+        return vehicles.countByDealerId(dealerId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> countByDealers(Collection<UUID> dealerIds) {
+        return dealerIds.isEmpty() ? Map.of() : vehicles.countByDealerIds(dealerIds);
     }
 
     private Vehicle requireVehicle(UUID id) {

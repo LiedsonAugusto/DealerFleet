@@ -2,8 +2,11 @@ import type {
   AddressLookup,
   Dealer,
   DealerInput,
+  Page,
   Vehicle,
   VehicleInput,
+  VehicleListParams,
+  VehicleSummary,
 } from '@/types'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
@@ -69,6 +72,20 @@ function body(payload: unknown): RequestInit {
   return { body: JSON.stringify(payload) }
 }
 
+export function queryString(params: VehicleListParams): string {
+  const search = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      search.set(key, String(value))
+    }
+  }
+
+  const query = search.toString()
+
+  return query === '' ? '' : `?${query}`
+}
+
 export const dealersApi = {
   list: () => request<Dealer[]>('/dealer'),
   get: (id: string) => request<Dealer>(`/dealer/${id}`),
@@ -80,7 +97,8 @@ export const dealersApi = {
 }
 
 export const vehiclesApi = {
-  list: () => request<Vehicle[]>('/vehicles'),
+  list: (params: VehicleListParams = {}) => request<Page<Vehicle>>(`/vehicles${queryString(params)}`),
+  summary: () => request<VehicleSummary>('/vehicles/summary'),
   get: (id: string) => request<Vehicle>(`/vehicles/${id}`),
   create: (input: VehicleInput) => request<Vehicle>('/vehicles', { method: 'POST', ...body(input) }),
   update: (id: string, input: VehicleInput) =>

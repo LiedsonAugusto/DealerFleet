@@ -90,6 +90,7 @@ describe('toDealerFormValues', () => {
       corporateName: 'Rio Motors',
       cnpj: '44556677000186',
       cnpjFormatted: '44.556.677/0001-86',
+      vehicleCount: 0,
       address: {
         cep: '20040020',
         cepFormatted: '20040-020',

@@ -4,7 +4,17 @@ import userEvent from '@testing-library/user-event'
 import { ApiError, dealersApi, vehiclesApi } from '@/api'
 import { DealerDetailPage } from '@/pages/dealers/dealer-detail-page'
 import { renderWithProviders } from '@/test/render'
-import type { Dealer, Vehicle } from '@/types'
+import type { Dealer, Page, Vehicle } from '@/types'
+
+function pageOf(content: Vehicle[]): Page<Vehicle> {
+  return {
+    content,
+    page: 1,
+    size: 100,
+    totalElements: content.length,
+    totalPages: 1,
+  }
+}
 
 const { navigate, params } = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -41,6 +51,7 @@ const BETIM: Dealer = {
   corporateName: 'Stellantis Betim Veículos',
   cnpj: '11222333000181',
   cnpjFormatted: '11.222.333/0001-81',
+  vehicleCount: 0,
   address: {
     cep: '32669900',
     cepFormatted: '32669-900',
@@ -72,7 +83,6 @@ function vehicle(id: string, overrides: Partial<Vehicle> = {}): Vehicle {
 const PULSE = vehicle('v-pulse', { model: 'Pulse', price: 110000 })
 const ARGO = vehicle('v-argo', { model: 'Argo', price: 90000 })
 const LIVRE = vehicle('v-livre', { brand: 'Jeep', model: 'Renegade', dealerId: null })
-const DE_OUTRA = vehicle('v-outra', { brand: 'Peugeot', model: '208', dealerId: 'dealer-goiana' })
 
 const VINCULADOS = [PULSE, ARGO]
 
@@ -88,7 +98,7 @@ describe('DealerDetailPage', () => {
     params.current = { id: BETIM.id }
     vi.mocked(dealersApi.get).mockResolvedValue(BETIM)
     vi.mocked(dealersApi.vehicles).mockResolvedValue(VINCULADOS)
-    vi.mocked(vehiclesApi.list).mockResolvedValue([...VINCULADOS, LIVRE, DE_OUTRA])
+    vi.mocked(vehiclesApi.list).mockResolvedValue(pageOf([LIVRE]))
     vi.mocked(vehiclesApi.assignDealer).mockResolvedValue({ ...LIVRE, dealerId: BETIM.id })
     vi.mocked(vehiclesApi.unassignDealer).mockResolvedValue({ ...PULSE, dealerId: null })
   })
@@ -162,8 +172,18 @@ describe('DealerDetailPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Jeep Renegade vinculado')
   })
 
+  it('pede ao servidor apenas os veiculos sem vinculo para o seletor', async () => {
+    renderWithProviders(<DealerDetailPage />)
+
+    await screen.findByLabelText('Vincular veículo')
+
+    expect(vehiclesApi.list).toHaveBeenCalledWith(
+      expect.objectContaining({ dealer: 'none' }),
+    )
+  })
+
   it('avisa quando nao ha veiculo disponivel para vincular', async () => {
-    vi.mocked(vehiclesApi.list).mockResolvedValue(VINCULADOS)
+    vi.mocked(vehiclesApi.list).mockResolvedValue(pageOf([]))
     renderWithProviders(<DealerDetailPage />)
 
     const seletor = await screen.findByLabelText('Vincular veículo')

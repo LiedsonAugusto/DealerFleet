@@ -25,7 +25,6 @@ import {
 import { useDealers, useDeleteDealer } from '@/hooks/use-dealers'
 import { useTableParams } from '@/hooks/use-table-params'
 import { useToast } from '@/hooks/use-toast'
-import { useVehicles } from '@/hooks/use-vehicles'
 import { errorMessage } from '@/lib/api-errors'
 import { onlyDigits } from '@/lib/format'
 import type { CellValue } from '@/lib/table'
@@ -51,7 +50,6 @@ export function DealerListPage() {
   const [pendingDelete, setPendingDelete] = useState<Dealer | null>(null)
 
   const dealers = useDealers()
-  const vehicles = useVehicles()
   const remove = useDeleteDealer()
 
   const {
@@ -70,17 +68,6 @@ export function DealerListPage() {
 
   const rows = useMemo(() => dealers.data ?? [], [dealers.data])
 
-  const vehicleCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-
-    for (const vehicle of vehicles.data ?? []) {
-      if (vehicle.dealerId) {
-        counts.set(vehicle.dealerId, (counts.get(vehicle.dealerId) ?? 0) + 1)
-      }
-    }
-    return counts
-  }, [vehicles.data])
-
   const stateOptions = useMemo(() => {
     const states = [...new Set(rows.map((dealer) => dealer.address.state))].sort()
     return states.map((state) => ({ value: state, label: state }))
@@ -92,9 +79,9 @@ export function DealerListPage() {
       cnpj: (dealer) => dealer.cnpj,
       city: (dealer) => dealer.address.city,
       state: (dealer) => dealer.address.state,
-      vehicles: (dealer) => vehicleCounts.get(dealer.id) ?? 0,
+      vehicles: (dealer) => dealer.vehicleCount,
     }),
-    [vehicleCounts],
+    [],
   )
 
   const filtered = useMemo(() => {
@@ -133,8 +120,8 @@ export function DealerListPage() {
   const paged = useMemo(() => pageSlice(sorted, currentPage, size), [sorted, currentPage, size])
 
   const linkedVehicles = useMemo(
-    () => [...vehicleCounts.values()].reduce((total, count) => total + count, 0),
-    [vehicleCounts],
+    () => rows.reduce((total, dealer) => total + dealer.vehicleCount, 0),
+    [rows],
   )
   const statesCovered = useMemo(
     () => new Set(rows.map((dealer) => dealer.address.state)).size,
@@ -191,7 +178,7 @@ export function DealerListPage() {
           value={String(linkedVehicles)}
           icon="truck"
           tone="emerald"
-          loading={vehicles.isPending}
+          loading={dealers.isPending}
         />
         <StatCard
           label="Média por unidade"
@@ -199,7 +186,7 @@ export function DealerListPage() {
           hint="Veículos por concessionária"
           icon="wallet"
           tone="slate"
-          loading={dealers.isPending || vehicles.isPending}
+          loading={dealers.isPending}
         />
       </div>
 
@@ -333,8 +320,8 @@ export function DealerListPage() {
                       <Badge>{dealer.address.state}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge tone={vehicleCounts.get(dealer.id) ? 'brand' : 'neutral'}>
-                        {vehicleCounts.get(dealer.id) ?? 0}
+                      <Badge tone={dealer.vehicleCount ? 'brand' : 'neutral'}>
+                        {dealer.vehicleCount}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

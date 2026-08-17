@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ApiError, dealersApi, vehiclesApi } from '@/api'
+import { ApiError, dealersApi } from '@/api'
 import { DealerListPage } from '@/pages/dealers/dealer-list-page'
 import { renderWithProviders } from '@/test/render'
-import type { Dealer, Vehicle } from '@/types'
+import type { Dealer } from '@/types'
 
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }))
 
@@ -23,7 +23,6 @@ vi.mock('@/api', async (importOriginal) => {
   return {
     ...actual,
     dealersApi: { ...actual.dealersApi, list: vi.fn(), remove: vi.fn() },
-    vehiclesApi: { ...actual.vehiclesApi, list: vi.fn() },
   }
 })
 
@@ -33,12 +32,14 @@ function dealer(
   cnpj: string,
   city: string,
   state: string,
+  vehicleCount = 0,
 ): Dealer {
   return {
     id,
     corporateName,
     cnpj,
     cnpjFormatted: `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`,
+    vehicleCount,
     address: {
       cep: '32669900',
       cepFormatted: '32669-900',
@@ -52,33 +53,11 @@ function dealer(
   }
 }
 
-const BETIM = dealer('d-betim', 'Stellantis Betim Veículos', '11222333000181', 'Betim', 'MG')
-const GOIANA = dealer('d-goiana', 'Goiana Motors', '22334455000186', 'Goiana', 'PE')
+const BETIM = dealer('d-betim', 'Stellantis Betim Veículos', '11222333000181', 'Betim', 'MG', 2)
+const GOIANA = dealer('d-goiana', 'Goiana Motors', '22334455000186', 'Goiana', 'PE', 1)
 const PAULISTA = dealer('d-paulista', 'Comercial Paulista', '33445566000186', 'São Paulo', 'SP')
 
 const DEALERS = [BETIM, GOIANA, PAULISTA]
-
-function vehicle(id: string, dealerId: string | null): Vehicle {
-  return {
-    id,
-    brand: 'Fiat',
-    model: 'Argo',
-    fuelType: 'FLEX',
-    color: 'Prata',
-    year: 2025,
-    chassis: null,
-    price: 90000,
-    externalColor: null,
-    dealerId,
-  }
-}
-
-const VEHICLES = [
-  vehicle('v-1', BETIM.id),
-  vehicle('v-2', BETIM.id),
-  vehicle('v-3', GOIANA.id),
-  vehicle('v-4', null),
-]
 
 function rowsInBody() {
   const table = screen.getByRole('table')
@@ -90,7 +69,6 @@ describe('DealerListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(dealersApi.list).mockResolvedValue(DEALERS)
-    vi.mocked(vehiclesApi.list).mockResolvedValue(VEHICLES)
     vi.mocked(dealersApi.remove).mockResolvedValue(undefined)
   })
 

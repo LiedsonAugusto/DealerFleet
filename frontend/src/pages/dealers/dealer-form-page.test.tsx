@@ -45,6 +45,7 @@ const BETIM: Dealer = {
   corporateName: 'Stellantis Betim Veículos',
   cnpj: '11222333000181',
   cnpjFormatted: '11.222.333/0001-81',
+  vehicleCount: 0,
   address: {
     cep: '32669900',
     cepFormatted: '32669-900',

@@ -1,3 +1,5 @@
+import type { VehicleListParams } from '@/types'
+
 export const dealerKeys = {
   all: ['dealers'] as const,
   list: () => [...dealerKeys.all, 'list'] as const,
@@ -7,6 +9,8 @@ export const dealerKeys = {
 
 export const vehicleKeys = {
   all: ['vehicles'] as const,
-  list: (dealerId: string | null) => [...vehicleKeys.all, 'list', dealerId] as const,
+  lists: () => [...vehicleKeys.all, 'list'] as const,
+  list: (params: VehicleListParams) => [...vehicleKeys.lists(), params] as const,
+  summary: () => [...vehicleKeys.all, 'summary'] as const,
   detail: (id: string) => [...vehicleKeys.all, 'detail', id] as const,
 }

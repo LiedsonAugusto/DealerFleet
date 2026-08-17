@@ -1,6 +1,7 @@
 package com.dealerfleet.adapter.in.bootstrap;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.boot.ApplicationArguments;
@@ -24,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
 class DataSeeder implements ApplicationRunner {
+
+    private static final int GENERATED_VEHICLES = 104;
 
     private final ManageDealerUseCase dealers;
     private final ManageVehicleUseCase vehicles;
@@ -86,8 +89,48 @@ class DataSeeder implements ApplicationRunner {
         vehicle("Peugeot", "Partner Rapid", FuelType.DIESEL, "Branco Banquise",
                 null, null, null, null, null);
 
+        fillFleet(List.of(betim, goiana, paulista, rio, campina));
+
         log.info("Carga inicial concluida: {} concessionarias e {} veiculos",
                 dealers.findAll().size(), vehicles.findAll().size());
+    }
+
+    private void fillFleet(List<UUID> dealerIds) {
+        List<Model> catalog = List.of(
+                new Model("Fiat", "Strada Volcano", FuelType.FLEX, 129900),
+                new Model("Fiat", "Fastback Audace", FuelType.FLEX, 159900),
+                new Model("Fiat", "Titano Ranch", FuelType.DIESEL, 249900),
+                new Model("Jeep", "Compass Sport", FuelType.FLEX, 179900),
+                new Model("Jeep", "Renegade Longitude", FuelType.FLEX, 149900),
+                new Model("Jeep", "Commander Limited", FuelType.DIESEL, 269900),
+                new Model("Peugeot", "208 Style", FuelType.FLEX, 99900),
+                new Model("Peugeot", "3008 Griffe", FuelType.HIBRIDO, 279900),
+                new Model("Citroen", "C3 You", FuelType.FLEX, 89900),
+                new Model("Citroen", "C4 Cactus Shine", FuelType.FLEX, 139900),
+                new Model("RAM", "Rampage Laramie", FuelType.DIESEL, 369900),
+                new Model("RAM", "2500 Limited", FuelType.DIESEL, 549900),
+                new Model("Fiat", "Pulse Audace", FuelType.FLEX, 134900),
+                new Model("Peugeot", "e-2008 GT", FuelType.ELETRICO, 289900));
+
+        List<String> colors = List.of("Branco Banchisa", "Preto Vulcano", "Prata Bari", "Cinza Strato",
+                "Vermelho Montecarlo", "Azul Vertigo", "Verde Recon", "Branco Polar");
+        List<Integer> years = List.of(2022, 2023, 2024, 2025, 2026);
+
+        for (int index = 0; index < GENERATED_VEHICLES; index++) {
+            Model model = catalog.get(index % catalog.size());
+            UUID dealerId = index % 11 == 0 ? null : dealerIds.get(index % dealerIds.size());
+
+            vehicle(model.brand(), model.name(), model.fuelType(),
+                    colors.get(index % colors.size()),
+                    years.get(index % years.size()),
+                    "9BD%014d".formatted(90000000000000L + index),
+                    String.valueOf(model.basePrice() + index % 7 * 1500),
+                    index % 5 == 0 ? "Preto Carbon" : null,
+                    dealerId);
+        }
+    }
+
+    private record Model(String brand, String name, FuelType fuelType, int basePrice) {
     }
 
     private UUID dealer(String corporateName, String cnpj, String cep, String street, String number,

@@ -21,7 +21,7 @@ import {
 import { useDealer, useDealerVehicles } from '@/hooks/use-dealers'
 import { useTableParams } from '@/hooks/use-table-params'
 import { useToast } from '@/hooks/use-toast'
-import { useAssignDealer, useUnassignDealer, useVehicles } from '@/hooks/use-vehicles'
+import { useAssignDealer, useUnassignDealer, useUnassignedVehicles } from '@/hooks/use-vehicles'
 import { errorMessage } from '@/lib/api-errors'
 import { empty, formatCompactCurrency, formatCurrency } from '@/lib/format'
 import { FUEL_LABELS } from '@/lib/labels'
@@ -50,15 +50,15 @@ export function DealerDetailPage() {
 
   const dealer = useDealer(id)
   const dealerVehicles = useDealerVehicles(id)
-  const allVehicles = useVehicles()
+  const unassignedVehicles = useUnassignedVehicles()
   const assign = useAssignDealer()
   const unassign = useUnassignDealer()
 
   const { page, size, setPage, setSize } = useTableParams({ defaultSize: 10 })
 
   const available = useMemo(
-    () => (allVehicles.data ?? []).filter((vehicle) => vehicle.dealerId === null),
-    [allVehicles.data],
+    () => unassignedVehicles.data?.content ?? [],
+    [unassignedVehicles.data],
   )
 
   const linked = useMemo(() => dealerVehicles.data ?? [], [dealerVehicles.data])

@@ -1,7 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { dealersApi, vehiclesApi } from '@/api'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { vehiclesApi } from '@/api'
 import { dealerKeys, vehicleKeys } from '@/hooks/query-keys'
-import type { VehicleInput } from '@/types'
+import type { VehicleInput, VehicleListParams } from '@/types'
+
+const UNASSIGNED_PARAMS: VehicleListParams = { dealer: 'none', size: 100 }
 
 function useInvalidateVehicles() {
   const queryClient = useQueryClient()
@@ -12,10 +14,25 @@ function useInvalidateVehicles() {
   }
 }
 
-export function useVehicles(dealerId: string | null = null) {
+export function useVehicles(params: VehicleListParams = {}) {
   return useQuery({
-    queryKey: vehicleKeys.list(dealerId),
-    queryFn: () => (dealerId ? dealersApi.vehicles(dealerId) : vehiclesApi.list()),
+    queryKey: vehicleKeys.list(params),
+    queryFn: () => vehiclesApi.list(params),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useVehicleSummary() {
+  return useQuery({
+    queryKey: vehicleKeys.summary(),
+    queryFn: vehiclesApi.summary,
+  })
+}
+
+export function useUnassignedVehicles() {
+  return useQuery({
+    queryKey: vehicleKeys.list(UNASSIGNED_PARAMS),
+    queryFn: () => vehiclesApi.list(UNASSIGNED_PARAMS),
   })
 }
 

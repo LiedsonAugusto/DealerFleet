@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.hibernate.exception.ConstraintViolationException;
@@ -20,6 +22,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.dealerfleet.adapter.out.persistence.ProductionSchema;
+import com.dealerfleet.application.port.PageQuery;
+import com.dealerfleet.application.port.PageResult;
+import com.dealerfleet.application.port.VehicleQuery;
+import com.dealerfleet.application.port.VehicleSummary;
 import com.dealerfleet.domain.vehicle.FuelType;
 import com.dealerfleet.domain.vehicle.Vehicle;
 import com.dealerfleet.domain.vehicle.VehicleSpec;
@@ -223,5 +229,205 @@ class VehiclePersistenceAdapterTest {
         entityManager.clear();
 
         assertThat(adapter.findById(saved.getId())).isEmpty();
+    }
+
+    private void seedFleet() {
+        adapter.save(Vehicle.create(specBuilder().brand("Fiat").model("Pulse").year(2025)
+                .price(new BigDecimal("109990.00")).build(), betim));
+        adapter.save(Vehicle.create(specBuilder().brand("Jeep").model("Compass").color("Preto")
+                .fuelType(FuelType.DIESEL).year(2024).price(new BigDecimal("219900.00")).build(), goiana));
+        adapter.save(Vehicle.create(specBuilder().brand("RAM").model("Rampage").color("Branco")
+                .year(2023).price(new BigDecimal("349900.00")).build(), null));
+        adapter.save(Vehicle.create(specBuilder().brand("citroen").model("Basalt").year(2025).build(), betim));
+
+        entityManager.flush();
+        entityManager.clear();
+    }
+
+    private static VehicleQuery filterBy(String field, String value) {
+        return switch (field) {
+            case "search" -> new VehicleQuery(value, null, null, null, null, null, null, false);
+            case "brand" -> new VehicleQuery(null, value, null, null, null, null, null, false);
+            case "model" -> new VehicleQuery(null, null, value, null, null, null, null, false);
+            case "color" -> new VehicleQuery(null, null, null, value, null, null, null, false);
+            case "year" -> new VehicleQuery(null, null, null, null, value, null, null, false);
+            default -> VehicleQuery.none();
+        };
+    }
+
+    private List<String> modelsOf(PageResult<Vehicle> result) {
+        return result.content().stream().map(Vehicle::getModel).toList();
+    }
+
+    @Test
+    @DisplayName("search fatia o resultado e informa o total de itens e de paginas")
+    void paginatesResult() {
+        seedFleet();
+
+        PageResult<Vehicle> first = adapter.search(VehicleQuery.none(), PageQuery.of(1, 2, "model", "asc"));
+        PageResult<Vehicle> second = adapter.search(VehicleQuery.none(), PageQuery.of(2, 2, "model", "asc"));
+
+        assertThat(first.content()).hasSize(2);
+        assertThat(first.totalElements()).isEqualTo(4);
+        assertThat(first.totalPages()).isEqualTo(2);
+        assertThat(first.page()).isEqualTo(1);
+
+        assertThat(modelsOf(first)).containsExactly("Basalt", "Compass");
+        assertThat(modelsOf(second)).containsExactly("Pulse", "Rampage");
+    }
+
+    @Test
+    @DisplayName("pagina alem do fim devolve conteudo vazio mantendo o total")
+    void pageBeyondLastIsEmpty() {
+        seedFleet();
+
+        PageResult<Vehicle> result = adapter.search(VehicleQuery.none(), PageQuery.of(9, 2, null, null));
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(4);
+        assertThat(result.totalPages()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("ordenacao por texto ignora maiusculas e respeita a direcao")
+    void sortsByTextIgnoringCase() {
+        seedFleet();
+
+        PageResult<Vehicle> ascending = adapter.search(VehicleQuery.none(), PageQuery.of(1, 10, "brand", "asc"));
+        PageResult<Vehicle> descending = adapter.search(VehicleQuery.none(), PageQuery.of(1, 10, "brand", "desc"));
+
+        assertThat(ascending.content().stream().map(Vehicle::getBrand))
+                .containsExactly("citroen", "Fiat", "Jeep", "RAM");
+        assertThat(descending.content().stream().map(Vehicle::getBrand))
+                .containsExactly("RAM", "Jeep", "Fiat", "citroen");
+    }
+
+    @Test
+    @DisplayName("ordenacao numerica joga os nulos para o fim nas duas direcoes")
+    void sortsNumericWithNullsLast() {
+        seedFleet();
+
+        PageResult<Vehicle> ascending = adapter.search(VehicleQuery.none(), PageQuery.of(1, 10, "price", "asc"));
+        PageResult<Vehicle> descending = adapter.search(VehicleQuery.none(), PageQuery.of(1, 10, "price", "desc"));
+
+        assertThat(modelsOf(ascending)).containsExactly("Pulse", "Compass", "Rampage", "Basalt");
+        assertThat(modelsOf(descending)).containsExactly("Rampage", "Compass", "Pulse", "Basalt");
+    }
+
+    @Test
+    @DisplayName("campo de ordenacao desconhecido cai no criterio estavel em vez de falhar")
+    void unknownSortFieldFallsBack() {
+        seedFleet();
+
+        PageResult<Vehicle> result = adapter.search(VehicleQuery.none(), PageQuery.of(1, 10, "dealer", "asc"));
+
+        assertThat(result.content()).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("filtros de texto casam por trecho e ignoram maiusculas")
+    void filtersTextByContains() {
+        seedFleet();
+
+        assertThat(modelsOf(adapter.search(filterBy("brand", "fia"), PageQuery.first()))).containsExactly("Pulse");
+        assertThat(modelsOf(adapter.search(filterBy("brand", "CITRO"), PageQuery.first()))).containsExactly("Basalt");
+        assertThat(modelsOf(adapter.search(filterBy("model", "amp"), PageQuery.first()))).containsExactly("Rampage");
+        assertThat(modelsOf(adapter.search(filterBy("color", "pret"), PageQuery.first()))).containsExactly("Compass");
+    }
+
+    @Test
+    @DisplayName("filtro de ano casa por trecho, como o campo de texto da tela")
+    void filtersYearByContains() {
+        seedFleet();
+
+        assertThat(adapter.search(filterBy("year", "202"), PageQuery.first()).totalElements()).isEqualTo(4);
+        assertThat(modelsOf(adapter.search(filterBy("year", "2023"), PageQuery.first()))).containsExactly("Rampage");
+        assertThat(adapter.search(filterBy("year", "2025"), PageQuery.first()).totalElements()).isEqualTo(2);
+        assertThat(adapter.search(filterBy("year", "1999"), PageQuery.first()).content()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("busca livre varre marca, modelo, cor e chassi")
+    void searchesAcrossFields() {
+        seedFleet();
+        adapter.save(Vehicle.create(specBuilder().model("Toro").chassis(CHASSIS).build(), betim));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(modelsOf(adapter.search(filterBy("search", "jeep"), PageQuery.first()))).containsExactly("Compass");
+        assertThat(modelsOf(adapter.search(filterBy("search", "rampage"), PageQuery.first()))).containsExactly("Rampage");
+        assertThat(modelsOf(adapter.search(filterBy("search", "branco"), PageQuery.first()))).containsExactly("Rampage");
+        assertThat(modelsOf(adapter.search(filterBy("search", CHASSIS), PageQuery.first()))).containsExactly("Toro");
+    }
+
+    @Test
+    @DisplayName("filtro de combustivel e de concessionaria restringem o resultado")
+    void filtersByFuelTypeAndDealer() {
+        seedFleet();
+
+        VehicleQuery diesel = new VehicleQuery(null, null, null, null, null, FuelType.DIESEL, null, false);
+        VehicleQuery fromBetim = new VehicleQuery(null, null, null, null, null, null, betim, false);
+        VehicleQuery withoutDealer = new VehicleQuery(null, null, null, null, null, null, null, true);
+
+        assertThat(modelsOf(adapter.search(diesel, PageQuery.first()))).containsExactly("Compass");
+        assertThat(adapter.search(fromBetim, PageQuery.first()).totalElements()).isEqualTo(2);
+        assertThat(modelsOf(adapter.search(withoutDealer, PageQuery.first()))).containsExactly("Rampage");
+    }
+
+    @Test
+    @DisplayName("filtros combinados somam restricoes em vez de se sobrepor")
+    void combinesFilters() {
+        seedFleet();
+
+        VehicleQuery query = new VehicleQuery(null, null, null, null, "2025", null, betim, false);
+
+        assertThat(adapter.search(query, PageQuery.first()).totalElements()).isEqualTo(2);
+
+        VehicleQuery narrowed = new VehicleQuery(null, "fiat", null, null, "2025", null, betim, false);
+
+        assertThat(modelsOf(adapter.search(narrowed, PageQuery.first()))).containsExactly("Pulse");
+    }
+
+    @Test
+    @DisplayName("summary totaliza a frota inteira e ignora precos nulos")
+    void summarizesWholeFleet() {
+        seedFleet();
+
+        VehicleSummary summary = adapter.summary();
+
+        assertThat(summary.total()).isEqualTo(4);
+        assertThat(summary.fleetValue()).isEqualByComparingTo("679790.00");
+        assertThat(summary.unassigned()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("countByDealerIds agrupa o total de cada concessionaria em uma consulta")
+    void countsGroupedByDealer() {
+        seedFleet();
+
+        Map<UUID, Long> counts = adapter.countByDealerIds(List.of(betim, goiana));
+
+        assertThat(counts).containsEntry(betim, 2L).containsEntry(goiana, 1L);
+    }
+
+    @Test
+    @DisplayName("countByDealerIds omite concessionaria sem veiculo em vez de devolver zero")
+    void omitsDealersWithoutVehicles() {
+        adapter.save(Vehicle.create(specBuilder().build(), betim));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(adapter.countByDealerIds(List.of(betim, goiana)))
+                .containsOnlyKeys(betim);
+    }
+
+    @Test
+    @DisplayName("summary de base vazia devolve zeros em vez de nulo")
+    void summarizesEmptyFleet() {
+        VehicleSummary summary = adapter.summary();
+
+        assertThat(summary.total()).isZero();
+        assertThat(summary.fleetValue()).isEqualByComparingTo("0");
+        assertThat(summary.unassigned()).isZero();
     }
 }

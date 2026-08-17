@@ -10,9 +10,10 @@ public record DealerResponse(
         String corporateName,
         String cnpj,
         String cnpjFormatted,
+        long vehicleCount,
         AddressResponse address) {
 
-    public static DealerResponse from(Dealer dealer) {
+    public static DealerResponse from(Dealer dealer, long vehicleCount) {
         Address address = dealer.getAddress();
 
         return new DealerResponse(
@@ -20,6 +21,7 @@ public record DealerResponse(
                 dealer.getCorporateName(),
                 dealer.getCnpj().value(),
                 dealer.getCnpj().formatted(),
+                vehicleCount,
                 new AddressResponse(
                         address.cep().value(),
                         address.cep().formatted(),

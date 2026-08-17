@@ -21,7 +21,7 @@ O perfil padrão é o `dev`, que usa H2 em memória. Não precisa de banco insta
 
 No console do H2, use a JDBC URL `jdbc:h2:mem:dealerfleet`, usuário `sa` e senha em branco.
 
-O banco sobe vazio e é populado pelo `DataSeeder` com 5 concessionárias e 16 veículos. Para desligar a carga: `SEED_ENABLED=false ./mvnw spring-boot:run`.
+O banco sobe vazio e é populado pelo `DataSeeder` com 5 concessionárias e 120 veículos. Para desligar a carga: `SEED_ENABLED=false ./mvnw spring-boot:run`.
 
 ## Perfis
 
@@ -150,7 +150,7 @@ O `CorrelationIdFilter` lê o `X-Request-Id` do cabeçalho, ou gera um se não v
 ## Testes
 
 ```bash
-./mvnw test   # 182 testes
+./mvnw test   # 211 testes
 ```
 
 O JaCoCo está ligado à fase `test`, então o relatório sai junto, em `target/site/jacoco/index.html`.
